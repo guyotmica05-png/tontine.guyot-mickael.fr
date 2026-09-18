@@ -62,7 +62,7 @@
           <th>Tranche</th>
           <th>Montant</th>
           <th>Durée</th>
-          <th>Coef.</th>
+          <th>Âge sortie</th>
           <th>Répartition</th>
           <th>Assurance</th>
           <th>Investi total</th>
@@ -77,7 +77,7 @@
           <td>{{ t.age }} → {{ t.age_perception }} ans ({{ t.annee_placement }}–{{ t.annee_perception }})</td>
           <td>{{ "{:,.0f}".format(t.montant).replace(",", " ") }} €</td>
           <td>{{ t.duree }} ans</td>
-          <td>{{ t.coefficient }}</td>
+          <td>{{ t.age_perception }} ans</td>
           <td>{{ "{:,.0f}".format(t.repartition_potentielle).replace(",", " ") }} €</td>
           <td>{{ "{:,.0f}".format(t.cout_assurance).replace(",", " ") }} €</td>
           <td>{{ "{:,.0f}".format(t.investissement_total).replace(",", " ") }} €</td>

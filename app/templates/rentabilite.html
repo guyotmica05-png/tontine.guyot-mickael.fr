@@ -91,7 +91,7 @@
           <table class="detail" id="table-detail">
             <thead>
               <tr>
-                <th>Tranche</th><th>Montant</th><th>Durée</th><th>Coef.</th>
+                <th>Tranche</th><th>Montant</th><th>Durée</th><th>Âge sortie</th>
                 <th>Répartition</th><th>Assurance</th><th>Investi total</th>
                 <th>Bénéfices</th><th>Fiscalité est.</th><th>Bénéfices nets</th>
               </tr>
@@ -246,7 +246,7 @@
             <td>${t.age} → ${t.age_perception} ans (${t.annee_placement}–${t.annee_perception})</td>
             <td>${formatEuros(t.montant)}</td>
             <td>${t.duree} ans</td>
-            <td>${t.coefficient}</td>
+            <td>${t.age_perception} ans</td>
             <td>${formatEuros(t.repartition_potentielle)}</td>
             <td>${formatEuros(t.cout_assurance)}</td>
             <td>${formatEuros(t.investissement_total)}</td>
