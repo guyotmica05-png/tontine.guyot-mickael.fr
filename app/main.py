@@ -21,6 +21,7 @@ from fastapi.templating import Jinja2Templates
 
 from . import auth, data
 from .pdf import render_pdf_rentabilite
+from .timeline import frise_svg
 
 app = FastAPI(title="Tontine — Guyot Mickaël", docs_url=None, redoc_url=None)
 
@@ -104,14 +105,7 @@ def home(request: Request, _: None = Depends(require_session)):
 
 @app.get("/rentabilite")
 def page_rentabilite(request: Request, _: None = Depends(require_session)):
-    return templates.TemplateResponse(
-        request,
-        "rentabilite.html",
-        {
-            "durees": data.durees_disponibles(),
-            "donnees_exemple": data.DONNEES_EXEMPLE,
-        },
-    )
+    return templates.TemplateResponse(request, "rentabilite.html", {})
 
 
 @app.get("/fiscalite")
@@ -122,21 +116,30 @@ def page_fiscalite(request: Request, _: None = Depends(require_session)):
 # --- API rentabilité (calcul + PDF) ---------------------------------------
 
 
-@app.get("/api/ages-disponibles")
-def api_ages(duree: int, _: None = Depends(require_session)):
-    return {"ages": data.ages_disponibles(duree)}
+@app.get("/api/durees-disponibles")
+def api_durees(age: int, _: None = Depends(require_session)):
+    return {"durees": data.durees_disponibles_pour_age(age)}
+
+
+def _parse_cascade_payload(payload: dict) -> dict:
+    age = int(payload.get("age"))
+    tranches = payload.get("tranches") or []
+    if not isinstance(tranches, list) or not tranches:
+        raise ValueError("Au moins une tranche est requise.")
+    tranches_norm = [{"montant": float(t["montant"]), "duree": int(t["duree"])} for t in tranches]
+    situation = "couple" if payload.get("situation") == "couple" else "seul"
+    encours_total = float(payload.get("encours_total") or 0)
+    return data.calculer_cascade(age, tranches_norm, situation=situation, encours_total=encours_total)
 
 
 @app.post("/api/calcul-rentabilite")
 async def api_calcul_rentabilite(request: Request, _: None = Depends(require_session)):
     payload = await request.json()
     try:
-        montant = float(payload.get("montant"))
-        age = int(payload.get("age"))
-        duree = int(payload.get("duree"))
-        resultat = data.calculer_rentabilite(montant, age, duree)
-    except (data.DonneesManquantesError, ValueError, TypeError) as exc:
+        resultat = _parse_cascade_payload(payload)
+    except (data.DonneesManquantesError, ValueError, TypeError, KeyError) as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    resultat["frise_svg"] = frise_svg(resultat)
     return resultat
 
 
@@ -144,11 +147,8 @@ async def api_calcul_rentabilite(request: Request, _: None = Depends(require_ses
 async def api_pdf_rentabilite(request: Request, _: None = Depends(require_session)):
     payload = await request.json()
     try:
-        montant = float(payload.get("montant"))
-        age = int(payload.get("age"))
-        duree = int(payload.get("duree"))
-        resultat = data.calculer_rentabilite(montant, age, duree)
-    except (data.DonneesManquantesError, ValueError, TypeError) as exc:
+        resultat = _parse_cascade_payload(payload)
+    except (data.DonneesManquantesError, ValueError, TypeError, KeyError) as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
     client_nom = str(payload.get("client_nom") or "")

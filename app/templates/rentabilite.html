@@ -6,6 +6,26 @@
   <meta name="robots" content="noindex, nofollow" />
   <title>Tontine — Rentabilité potentielle</title>
   <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    .tranche-row { display: flex; gap: 16px; align-items: flex-end; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid #eee; }
+    .tranche-row .field { flex: 1; }
+    .tranche-row .btn-remove {
+      background: none; border: 1px solid #ccc; color: #a3232b; border-radius: 6px;
+      padding: 9px 12px; cursor: pointer; font-size: 13px; height: 42px;
+    }
+    .btn-secondary {
+      background: #fff; color: var(--navy); border: 1px solid var(--navy); border-radius: 6px;
+      padding: 10px 18px; font-size: 14px; cursor: pointer; margin-top: 6px;
+    }
+    .btn-secondary:hover { background: var(--navy-light); }
+    table.detail { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 12.5px; }
+    table.detail th { background: var(--navy); color: #fff; text-align: left; padding: 8px 10px; font-size: 10.5px; text-transform: uppercase; }
+    table.detail td { padding: 8px 10px; border-bottom: 1px solid #eee; }
+    table.detail tr.total td { font-weight: 700; background: var(--navy-light); }
+    #frise-container { overflow-x: auto; margin-top: 16px; }
+    #frise-container svg { max-width: 100%; }
+    .sous-note { font-size: 12px; color: #666; margin-top: 10px; }
+  </style>
 </head>
 <body>
   <header class="topbar">
@@ -20,58 +40,71 @@
   <main>
     <div class="card">
       <h2>Simulation de rentabilité potentielle</h2>
-
-      {% if donnees_exemple %}
-      <div class="badge-exemple">
-        ⚠️ Les coefficients utilisés ici sont des données d'EXEMPLE (non réelles). En attente des deux tableaux Excel de Mickaël (rentabilité passée + tarifs assurance) pour les remplacer.
+      <div class="note" style="margin-top:-8px; margin-bottom:20px;">
+        Calcul déterministe, aucune IA. Ajoute plusieurs tranches (durées différentes) pour simuler une <strong>cascade</strong> de tontines souscrites en même temps.
       </div>
-      {% endif %}
 
       <div class="form-row">
         <div class="field">
           <label for="client_nom">Nom du client (optionnel, pour le PDF)</label>
           <input type="text" id="client_nom" placeholder="Ex. M. Dupont" />
         </div>
+        <div class="field">
+          <label for="age">Âge du client</label>
+          <input type="number" id="age" min="20" max="76" value="45" />
+        </div>
       </div>
 
       <div class="form-row">
         <div class="field">
-          <label for="montant">Montant à investir (€)</label>
-          <input type="number" id="montant" min="0" step="100" value="10000" />
-        </div>
-        <div class="field">
-          <label for="duree">Durée de la tontine</label>
-          <select id="duree">
-            {% for d in durees %}
-            <option value="{{ d }}">{{ d }} ans</option>
-            {% endfor %}
+          <label for="situation">Situation familiale (pour l'abattement fiscal)</label>
+          <select id="situation">
+            <option value="seul">Célibataire (abattement 4 600 €/an)</option>
+            <option value="couple">Marié / pacsé (abattement 9 200 €/an)</option>
           </select>
         </div>
         <div class="field">
-          <label for="age">Âge du client</label>
-          <select id="age"></select>
+          <label for="encours">Encours total tous contrats (capitalisation / AV)</label>
+          <input type="number" id="encours" min="0" step="1000" value="0" />
         </div>
       </div>
 
-      <div id="erreur" class="note" style="color:#a3232b; display:none;"></div>
+      <div id="tranches"></div>
 
-      <div class="result-grid" id="resultats" style="display:none;">
-        <div class="result-tile navy">
-          <div class="label">Répartition potentielle reçue</div>
-          <div class="value" id="val-repartition">—</div>
-        </div>
-        <div class="result-tile">
-          <div class="label">Gain potentiel</div>
-          <div class="value" id="val-gain">—</div>
-        </div>
-        <div class="result-tile">
-          <div class="label">Coût de l'assurance</div>
-          <div class="value" id="val-assurance">—</div>
-        </div>
-      </div>
+      <button class="btn-secondary" id="btn-add-tranche" type="button">+ Ajouter une tranche (cascade)</button>
 
-      <div class="note">
-        Coefficient appliqué : <span id="val-coef">—</span> — calcul déterministe, aucune IA.
+      <div id="erreur" class="note" style="color:#a3232b; display:none; margin-top:14px;"></div>
+
+      <div id="resultats" style="display:none;">
+        <div class="result-grid" style="margin-top:20px;">
+          <div class="result-tile navy">
+            <div class="label" id="lbl-repartition">Répartition potentielle</div>
+            <div class="value" id="val-repartition">—</div>
+          </div>
+          <div class="result-tile">
+            <div class="label" id="lbl-benefices">Bénéfices (net assurance)</div>
+            <div class="value" id="val-benefices">—</div>
+          </div>
+          <div class="result-tile">
+            <div class="label" id="lbl-benefices-net">Bénéfices nets estimés (après fiscalité)</div>
+            <div class="value" id="val-benefices-net">—</div>
+          </div>
+        </div>
+
+        <table class="detail" id="table-detail" style="display:none;">
+          <thead>
+            <tr>
+              <th>Tranche</th><th>Montant</th><th>Durée</th><th>Coef.</th>
+              <th>Répartition</th><th>Assurance</th><th>Investi total</th>
+              <th>Bénéfices</th><th>Fiscalité est.</th><th>Bénéfices nets</th>
+            </tr>
+          </thead>
+          <tbody id="table-detail-body"></tbody>
+        </table>
+
+        <div class="sous-note" id="note-fiscalite"></div>
+
+        <div id="frise-container"></div>
       </div>
 
       <div style="margin-top:20px;">
@@ -81,9 +114,11 @@
   </main>
 
   <script>
-    const montantEl = document.getElementById('montant');
-    const dureeEl = document.getElementById('duree');
+    const trancheIdCounter = { n: 0 };
+    const tranchesEl = document.getElementById('tranches');
     const ageEl = document.getElementById('age');
+    const situationEl = document.getElementById('situation');
+    const encoursEl = document.getElementById('encours');
     const clientNomEl = document.getElementById('client_nom');
     const erreurEl = document.getElementById('erreur');
     const resultatsEl = document.getElementById('resultats');
@@ -91,21 +126,76 @@
 
     let dernierResultat = null;
 
-    async function chargerAges() {
-      const duree = dureeEl.value;
-      const resp = await fetch(`/api/ages-disponibles?duree=${duree}`);
+    function formatEuros(v) {
+      return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
+    }
+
+    async function chargerDureesPourAge(select, dureeVoulue) {
+      const age = parseInt(ageEl.value, 10) || 0;
+      const resp = await fetch(`/api/durees-disponibles?age=${age}`);
       const data = await resp.json();
-      ageEl.innerHTML = '';
-      for (const a of data.ages) {
+      select.innerHTML = '';
+      for (const d of data.durees) {
         const opt = document.createElement('option');
-        opt.value = a;
-        opt.textContent = `${a} ans`;
-        ageEl.appendChild(opt);
+        opt.value = d;
+        opt.textContent = `${d} ans`;
+        if (d === dureeVoulue) opt.selected = true;
+        select.appendChild(opt);
       }
     }
 
-    function formatEuros(v) {
-      return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
+    function ajouterTranche(montant = 10000, duree = null) {
+      trancheIdCounter.n += 1;
+      const id = trancheIdCounter.n;
+      const row = document.createElement('div');
+      row.className = 'tranche-row';
+      row.dataset.id = id;
+      row.innerHTML = `
+        <div class="field">
+          <label>Montant à investir (€)</label>
+          <input type="number" class="tranche-montant" min="0" step="100" value="${montant}" />
+        </div>
+        <div class="field">
+          <label>Durée de la tontine</label>
+          <select class="tranche-duree"></select>
+        </div>
+        <button type="button" class="btn-remove">Retirer</button>
+      `;
+      tranchesEl.appendChild(row);
+
+      const select = row.querySelector('.tranche-duree');
+      const montantInput = row.querySelector('.tranche-montant');
+      const btnRemove = row.querySelector('.btn-remove');
+
+      chargerDureesPourAge(select, duree).then(calculer);
+
+      montantInput.addEventListener('input', calculer);
+      select.addEventListener('change', calculer);
+      btnRemove.addEventListener('click', () => {
+        row.remove();
+        calculer();
+      });
+    }
+
+    document.getElementById('btn-add-tranche').addEventListener('click', () => ajouterTranche());
+
+    ageEl.addEventListener('change', async () => {
+      const rows = [...tranchesEl.querySelectorAll('.tranche-row')];
+      for (const row of rows) {
+        const select = row.querySelector('.tranche-duree');
+        const dureeActuelle = parseInt(select.value, 10) || null;
+        await chargerDureesPourAge(select, dureeActuelle);
+      }
+      calculer();
+    });
+    situationEl.addEventListener('change', calculer);
+    encoursEl.addEventListener('input', calculer);
+
+    function collecterTranches() {
+      return [...tranchesEl.querySelectorAll('.tranche-row')].map(row => ({
+        montant: parseFloat(row.querySelector('.tranche-montant').value),
+        duree: parseInt(row.querySelector('.tranche-duree').value, 10),
+      })).filter(t => t.montant > 0 && t.duree);
     }
 
     async function calculer() {
@@ -114,15 +204,18 @@
       btnPdf.disabled = true;
       dernierResultat = null;
 
-      const montant = parseFloat(montantEl.value);
-      const duree = parseInt(dureeEl.value, 10);
       const age = parseInt(ageEl.value, 10);
-      if (!montant || !duree || !age) return;
+      const tranches = collecterTranches();
+      if (!age || tranches.length === 0) return;
 
       const resp = await fetch('/api/calcul-rentabilite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ montant, duree, age }),
+        body: JSON.stringify({
+          age, tranches,
+          situation: situationEl.value,
+          encours_total: parseFloat(encoursEl.value) || 0,
+        }),
       });
 
       if (!resp.ok) {
@@ -134,23 +227,67 @@
 
       const r = await resp.json();
       dernierResultat = r;
-      document.getElementById('val-repartition').textContent = formatEuros(r.repartition_potentielle);
-      document.getElementById('val-gain').textContent = formatEuros(r.gain_potentiel);
-      document.getElementById('val-assurance').textContent = formatEuros(r.cout_assurance);
-      document.getElementById('val-coef').textContent = r.coefficient;
-      resultatsEl.style.display = 'flex';
+
+      document.getElementById('lbl-repartition').textContent = r.cascade ? 'Répartition potentielle totale' : 'Répartition potentielle';
+      document.getElementById('lbl-benefices').textContent = r.cascade ? 'Bénéfices totaux (net assurance)' : 'Bénéfices (net assurance)';
+      document.getElementById('val-repartition').textContent = formatEuros(r.total_repartition_potentielle);
+      document.getElementById('val-benefices').textContent = formatEuros(r.total_benefices);
+      document.getElementById('val-benefices-net').textContent = formatEuros(r.total_benefices_net);
+
+      document.getElementById('note-fiscalite').textContent =
+        `Fiscalité estimée : PFNL forfaitaire ${(r.taux_pfnl_applique*100).toFixed(1)} % sur les gains au-delà de l'abattement annuel (${formatEuros(r.abattement_applique)}), appliqué par tranche. Estimation indicative — pour l'arbitrage complet avec le barème progressif selon la TMI du client, voir l'onglet Fiscalité de sortie.`;
+
+      const tbody = document.getElementById('table-detail-body');
+      const table = document.getElementById('table-detail');
+      const friseContainer = document.getElementById('frise-container');
+      if (r.cascade) {
+        tbody.innerHTML = r.tranches.map(t => `
+          <tr>
+            <td>${t.age} → ${t.age_perception} ans (${t.annee_placement}–${t.annee_perception})</td>
+            <td>${formatEuros(t.montant)}</td>
+            <td>${t.duree} ans</td>
+            <td>${t.coefficient}</td>
+            <td>${formatEuros(t.repartition_potentielle)}</td>
+            <td>${formatEuros(t.cout_assurance)}</td>
+            <td>${formatEuros(t.investissement_total)}</td>
+            <td>${formatEuros(t.benefices)}</td>
+            <td>${formatEuros(t.fiscalite_estimee)}</td>
+            <td>${formatEuros(t.benefices_net)}</td>
+          </tr>
+        `).join('') + `
+          <tr class="total">
+            <td>Total</td>
+            <td>${formatEuros(r.total_montant)}</td>
+            <td>—</td><td>—</td>
+            <td>${formatEuros(r.total_repartition_potentielle)}</td>
+            <td>${formatEuros(r.total_cout_assurance)}</td>
+            <td>${formatEuros(r.total_investissement_total)}</td>
+            <td>${formatEuros(r.total_benefices)}</td>
+            <td>${formatEuros(r.total_fiscalite_estimee)}</td>
+            <td>${formatEuros(r.total_benefices_net)}</td>
+          </tr>`;
+        table.style.display = 'table';
+        friseContainer.innerHTML = r.frise_svg;
+      } else {
+        table.style.display = 'none';
+        friseContainer.innerHTML = '';
+      }
+
+      resultatsEl.style.display = 'block';
       btnPdf.disabled = false;
     }
 
     btnPdf.addEventListener('click', async () => {
       if (!dernierResultat) return;
+      const age = parseInt(ageEl.value, 10);
+      const tranches = collecterTranches();
       const resp = await fetch('/api/pdf-rentabilite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          montant: dernierResultat.montant,
-          duree: dernierResultat.duree,
-          age: dernierResultat.age,
+          age, tranches,
+          situation: situationEl.value,
+          encours_total: parseFloat(encoursEl.value) || 0,
           client_nom: clientNomEl.value,
         }),
       });
@@ -167,11 +304,7 @@
       URL.revokeObjectURL(url);
     });
 
-    dureeEl.addEventListener('change', async () => { await chargerAges(); await calculer(); });
-    ageEl.addEventListener('change', calculer);
-    montantEl.addEventListener('input', calculer);
-
-    (async () => { await chargerAges(); await calculer(); })();
+    ajouterTranche(10000, null);
   </script>
 </body>
 </html>

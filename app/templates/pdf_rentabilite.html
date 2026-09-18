@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <style>
-  @page { size: A4; margin: 0; }
+  @page { size: A4 landscape; margin: 0; }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #1c1c1c; }
   :root { --navy: #1A2744; --navy-mid: #2D3F6B; --navy-light: #EEF1F8; --gold: #B8983A; --gold-light: #F5EED6; }
@@ -21,15 +21,21 @@
   .tile { flex: 1; background: var(--navy-light); border-radius: 8px; padding: 18px 20px; border-left: 4px solid var(--gold); }
   .tile.navy { border-left-color: var(--navy); }
   .tile .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--navy-mid); }
-  .tile .val { font-family: Georgia, serif; font-size: 24px; color: var(--navy); margin-top: 4px; }
+  .tile .val { font-family: Georgia, serif; font-size: 22px; color: var(--navy); margin-top: 4px; }
 
   table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-  th { background: var(--navy); color: #fff; text-align: left; padding: 10px 14px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
-  td { padding: 10px 14px; border-bottom: 1px solid #e4e4e4; font-size: 13px; }
+  th { background: var(--navy); color: #fff; text-align: left; padding: 9px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; }
+  td { padding: 9px 12px; border-bottom: 1px solid #e4e4e4; font-size: 12.5px; }
+  tr.total td { font-weight: 700; background: var(--navy-light); border-bottom: none; }
+
+  .frise-section { break-inside: avoid; margin-top: 32px; }
+  .frise-wrap { margin-top: 8px; }
 
   .exemple-banner { background: #fff3cd; border: 1px solid #f0d68a; color: #7a5c00; border-radius: 6px; padding: 12px 16px; font-size: 12px; margin-bottom: 24px; }
 
-  .mentions { font-size: 10px; color: #777; line-height: 1.6; margin-top: 40px; }
+  .mentions { font-size: 9.5px; color: #777; line-height: 1.6; margin-top: 32px; }
+  .mentions p { margin: 0 0 8px; }
+  .mentions .disclaimer { font-weight: 700; color: #555; }
 
   .footer { background: var(--navy); color: rgba(255,255,255,0.5); text-align: center; padding: 20px; font-size: 10px; letter-spacing: 0.5px; position: fixed; bottom: 0; left: 0; right: 0; }
 </style>
@@ -37,7 +43,7 @@
 <body>
   <div class="cover">
     <img src="data:image/png;base64,{{ logo_b64 }}" alt="Le Conservateur" />
-    <div class="label">Simulation de rentabilité</div>
+    <div class="label">{{ "Simulation de rentabilité — cascade" if r.cascade else "Simulation de rentabilité" }}</div>
     <h1>Tontine{% if client_nom %} — {{ client_nom }}{% endif %}</h1>
     <div class="meta">Document généré le {{ date_str }} — projection non contractuelle</div>
   </div>
@@ -49,32 +55,87 @@
     </div>
     {% endif %}
 
-    <div class="section-title">Hypothèses de simulation</div>
+    <div class="section-title">{{ "Hypothèses de simulation — " ~ r.tranches|length ~ " tranches (cascade)" if r.cascade else "Hypothèses de simulation" }}</div>
     <table>
-      <tr><td>Montant placé</td><td>{{ "{:,.0f}".format(r.montant).replace(",", " ") }} €</td></tr>
-      <tr><td>Âge du client</td><td>{{ r.age }} ans</td></tr>
-      <tr><td>Durée de la tontine</td><td>{{ r.duree }} ans</td></tr>
-      <tr><td>Coefficient de rentabilité appliqué</td><td>{{ r.coefficient }}</td></tr>
+      <thead>
+        <tr>
+          <th>Tranche</th>
+          <th>Montant</th>
+          <th>Durée</th>
+          <th>Coef.</th>
+          <th>Répartition</th>
+          <th>Assurance</th>
+          <th>Investi total</th>
+          <th>Bénéfices</th>
+          <th>Fiscalité est.</th>
+          <th>Bénéfices nets</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in r.tranches %}
+        <tr>
+          <td>{{ t.age }} → {{ t.age_perception }} ans ({{ t.annee_placement }}–{{ t.annee_perception }})</td>
+          <td>{{ "{:,.0f}".format(t.montant).replace(",", " ") }} €</td>
+          <td>{{ t.duree }} ans</td>
+          <td>{{ t.coefficient }}</td>
+          <td>{{ "{:,.0f}".format(t.repartition_potentielle).replace(",", " ") }} €</td>
+          <td>{{ "{:,.0f}".format(t.cout_assurance).replace(",", " ") }} €</td>
+          <td>{{ "{:,.0f}".format(t.investissement_total).replace(",", " ") }} €</td>
+          <td>{{ "{:,.0f}".format(t.benefices).replace(",", " ") }} €</td>
+          <td>{{ "{:,.0f}".format(t.fiscalite_estimee).replace(",", " ") }} €</td>
+          <td>{{ "{:,.0f}".format(t.benefices_net).replace(",", " ") }} €</td>
+        </tr>
+        {% endfor %}
+        {% if r.cascade %}
+        <tr class="total">
+          <td>Total</td>
+          <td>{{ "{:,.0f}".format(r.total_montant).replace(",", " ") }} €</td>
+          <td>—</td>
+          <td>—</td>
+          <td>{{ "{:,.0f}".format(r.total_repartition_potentielle).replace(",", " ") }} €</td>
+          <td>{{ "{:,.0f}".format(r.total_cout_assurance).replace(",", " ") }} €</td>
+          <td>{{ "{:,.0f}".format(r.total_investissement_total).replace(",", " ") }} €</td>
+          <td>{{ "{:,.0f}".format(r.total_benefices).replace(",", " ") }} €</td>
+          <td>{{ "{:,.0f}".format(r.total_fiscalite_estimee).replace(",", " ") }} €</td>
+          <td>{{ "{:,.0f}".format(r.total_benefices_net).replace(",", " ") }} €</td>
+        </tr>
+        {% endif %}
+      </tbody>
     </table>
+    <div class="note-fiscalite" style="font-size:10.5px; color:#666; margin-top:8px;">
+      Fiscalité estimée : PFNL forfaitaire {{ "%.1f"|format(r.taux_pfnl_applique*100) }} % sur les gains au-delà de l'abattement annuel ({{ "{:,.0f}".format(r.abattement_applique).replace(",", " ") }} €), appliqué par tranche (chaque tranche se dénoue une année différente). Estimation indicative — pour l'arbitrage complet avec le barème progressif selon la TMI du client, voir l'outil Fiscalité de sortie.
+    </div>
 
-    <div class="section-title" style="margin-top:32px;">Résultats</div>
+    {% if r.cascade %}
+    <div class="frise-section">
+      <div class="section-title">Frise de la cascade</div>
+      <div class="frise-wrap">{{ frise|safe }}</div>
+    </div>
+    {% endif %}
+
+    <div class="section-title" style="margin-top:32px;">Résultats {{ "cumulés" if r.cascade else "" }}</div>
     <div class="grid">
       <div class="tile navy">
-        <div class="lbl">Répartition potentielle reçue</div>
-        <div class="val">{{ "{:,.0f}".format(r.repartition_potentielle).replace(",", " ") }} €</div>
+        <div class="lbl">Répartition potentielle {{ "totale" if r.cascade else "reçue" }}</div>
+        <div class="val">{{ "{:,.0f}".format(r.total_repartition_potentielle).replace(",", " ") }} €</div>
       </div>
       <div class="tile">
-        <div class="lbl">Gain potentiel</div>
-        <div class="val">{{ "{:,.0f}".format(r.gain_potentiel).replace(",", " ") }} €</div>
+        <div class="lbl">Bénéfices {{ "totaux" if r.cascade else "" }} (net assurance)</div>
+        <div class="val">{{ "{:,.0f}".format(r.total_benefices).replace(",", " ") }} €</div>
       </div>
       <div class="tile">
-        <div class="lbl">Coût de l'assurance</div>
-        <div class="val">{{ "{:,.0f}".format(r.cout_assurance).replace(",", " ") }} €</div>
+        <div class="lbl">Bénéfices nets estimés (après fiscalité)</div>
+        <div class="val">{{ "{:,.0f}".format(r.total_benefices_net).replace(",", " ") }} €</div>
       </div>
     </div>
 
     <div class="mentions">
-      Simulation non contractuelle, réalisée à titre indicatif sur la base des coefficients de rentabilité passée et de la tarification en vigueur à la date de simulation. La rentabilité effective d'une tontine dépend de la mutualisation entre les membres de la génération et ne peut être garantie. Document réservé à un usage interne / RDV client, à ne pas diffuser hors de ce cadre. Le Conservateur — société d'assurance mutuelle sur la vie à cotisations fixes régie par le Code des assurances.
+      <p class="disclaimer">Les performances passées ne préjugent pas des performances à venir.</p>
+      <p>Simulation non contractuelle, réalisée à titre indicatif sur la base des coefficients de rentabilité passée ("La Tontine Prime Unique — Coefficients 2006-2026", Les Associations Mutuelles Le Conservateur) et de la tarification d'assurance en vigueur à la date de simulation. La rentabilité effective d'une tontine dépend de la mutualisation entre les membres de la génération d'adhésion et ne peut être garantie.</p>
+      {% if durees_simulees %}
+      <p>Au moins une tranche de cette simulation porte sur une durée supérieure à 20 ans et/ou un âge à l'adhésion supérieur à 70 ans : pour ces cas, les coefficients ne sont pas des coefficients constatés mais des coefficients simulés à partir des paramètres techniques de la répartition 2006-2026, ces durées et âges n'étant commercialisés/constatés que depuis 2006.</p>
+      {% endif %}
+      <p>Document réservé à un usage interne / RDV client, à ne pas diffuser hors de ce cadre. Les Associations Mutuelles Le Conservateur — société à forme tontinière, entreprise régie par le Code des assurances.</p>
     </div>
   </div>
 

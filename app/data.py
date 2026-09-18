@@ -24,6 +24,7 @@ plus restreinte : âge 20-74, durée 10-25) ; c'est elle qui borne les
 combinaisons proposées côté site, la table de tarifs (âge 12-76, durée
 9-30) couvre toujours plus large.
 """
+from datetime import date
 
 DONNEES_EXEMPLE = False
 
@@ -188,6 +189,11 @@ def ages_disponibles(duree: int) -> list[int]:
     return sorted(COEFFICIENTS_RENTABILITE.get(duree, {}).keys())
 
 
+def durees_disponibles_pour_age(age: int) -> list[int]:
+    """Durées pour lesquelles une tontine est souscriptible à cet âge (une tranche de cascade)."""
+    return [d for d in durees_disponibles() if age in COEFFICIENTS_RENTABILITE.get(d, {})]
+
+
 class DonneesManquantesError(Exception):
     pass
 
@@ -201,6 +207,16 @@ def _lookup(table: dict[int, dict[int, float]], duree: int, age: int) -> float:
     return par_duree[age]
 
 
+# Fiscalité de sortie (art. 125-0 A CGI, primes post 27/09/2017), voir /fiscalite
+# pour le détail et l'arbitrage IR barème vs PFNL. Constantes reprises ici pour
+# donner une estimation indicative directement dans la simulation de rentabilité.
+ABATTEMENT_SEUL = 4600
+ABATTEMENT_COUPLE = 9200
+SEUIL_ENCOURS_PFNL = 150000
+TAUX_PFNL_BAS = 0.075
+TAUX_PFNL_HAUT = 0.128
+
+
 def calculer_rentabilite(montant: float, age: int, duree: int) -> dict:
     if montant <= 0:
         raise ValueError("Le montant doit être positif.")
@@ -211,6 +227,8 @@ def calculer_rentabilite(montant: float, age: int, duree: int) -> dict:
     repartition_potentielle = montant * coefficient
     cout_assurance = tarif_10000 * (montant / 10000)
     gain_potentiel = repartition_potentielle - montant
+    investissement_total = montant + cout_assurance
+    benefices = repartition_potentielle - investissement_total
 
     return {
         "montant": montant,
@@ -220,5 +238,66 @@ def calculer_rentabilite(montant: float, age: int, duree: int) -> dict:
         "repartition_potentielle": round(repartition_potentielle, 2),
         "gain_potentiel": round(gain_potentiel, 2),
         "cout_assurance": round(cout_assurance, 2),
+        "investissement_total": round(investissement_total, 2),
+        "benefices": round(benefices, 2),
+        "donnees_exemple": DONNEES_EXEMPLE,
+    }
+
+
+def calculer_cascade(
+    age: int,
+    tranches: list[dict],
+    situation: str = "seul",
+    encours_total: float = 0,
+) -> dict:
+    """Cascade = plusieurs tontines de durées différentes souscrites en même temps par le même client.
+
+    La fiscalité estimée par tranche est indicative : PFNL forfaitaire (7,5 % ou
+    12,8 % selon encours), abattement annuel appliqué par tranche car chaque
+    tranche se dénoue une année différente. Pour l'arbitrage complet avec le
+    barème progressif selon la TMI du client, voir /fiscalite.
+    """
+    if not tranches:
+        raise ValueError("Au moins une tranche est requise.")
+
+    abattement = ABATTEMENT_COUPLE if situation == "couple" else ABATTEMENT_SEUL
+    taux_pfnl = TAUX_PFNL_HAUT if encours_total > SEUIL_ENCOURS_PFNL else TAUX_PFNL_BAS
+
+    annee_placement = date.today().year
+    resultats = []
+    for t in tranches:
+        montant = float(t["montant"])
+        duree = int(t["duree"])
+        r = calculer_rentabilite(montant, age, duree)
+        r["age_perception"] = age + duree
+        r["annee_placement"] = annee_placement
+        r["annee_perception"] = annee_placement + duree
+        fiscalite_estimee = max(0.0, r["gain_potentiel"] - abattement) * taux_pfnl
+        r["fiscalite_estimee"] = round(fiscalite_estimee, 2)
+        r["benefices_net"] = round(r["benefices"] - fiscalite_estimee, 2)
+        resultats.append(r)
+
+    resultats.sort(key=lambda r: r["duree"])
+
+    def total(cle: str) -> float:
+        return round(sum(r[cle] for r in resultats), 2)
+
+    return {
+        "age": age,
+        "situation": situation,
+        "encours_total": encours_total,
+        "taux_pfnl_applique": taux_pfnl,
+        "abattement_applique": abattement,
+        "annee_placement": annee_placement,
+        "tranches": resultats,
+        "total_montant": total("montant"),
+        "total_repartition_potentielle": total("repartition_potentielle"),
+        "total_gain_potentiel": total("gain_potentiel"),
+        "total_cout_assurance": total("cout_assurance"),
+        "total_investissement_total": total("investissement_total"),
+        "total_benefices": total("benefices"),
+        "total_fiscalite_estimee": total("fiscalite_estimee"),
+        "total_benefices_net": total("benefices_net"),
+        "cascade": len(resultats) > 1,
         "donnees_exemple": DONNEES_EXEMPLE,
     }
