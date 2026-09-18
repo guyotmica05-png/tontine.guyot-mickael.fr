@@ -24,6 +24,12 @@
         Régime applicable aux primes versées à compter du 27/09/2017 (art. 125-0 A CGI, par assimilation aux contrats de capitalisation). Calcul 100% local, aucune IA, aucune donnée envoyée au serveur.
       </div>
 
+      <div style="margin-bottom:20px;">
+        <button type="button" class="btn-secondary" id="btn-import">↺ Reprendre depuis la simulation de rentabilité</button>
+        <div id="import-choix" style="display:none; margin-top:12px;"></div>
+        <div class="note" id="import-statut" style="margin-top:10px; display:none;"></div>
+      </div>
+
       <div class="form-row">
         <div class="field">
           <label for="gains">Montant des gains à la sortie (intérêts, hors capital)</label>
@@ -138,6 +144,59 @@
 
     Object.values(els).forEach(el => el.addEventListener('input', calculer));
     calculer();
+
+    // --- Reprise des données depuis la simulation de rentabilité (localStorage, rien sur le serveur) ---
+    function formatEurosImport(v) {
+      return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
+    }
+
+    function appliquerTranche(donnees, tranche) {
+      els.gains.value = Math.round(tranche.gain_potentiel);
+      els.situation.value = donnees.situation === 'couple' ? 'couple' : 'seul';
+      els.encours.value = donnees.encours_total || 0;
+      calculer();
+
+      const statut = document.getElementById('import-statut');
+      statut.style.display = 'block';
+      statut.textContent = `Repris de la simulation de rentabilité : tranche ${tranche.duree} ans, sortie en ${tranche.annee_perception} (${tranche.age_perception} ans) → plus-value ${formatEurosImport(tranche.gain_potentiel)}.`;
+      document.getElementById('import-choix').style.display = 'none';
+    }
+
+    document.getElementById('btn-import').addEventListener('click', () => {
+      const brut = localStorage.getItem('tontine_dernier_calcul_rentabilite');
+      const statut = document.getElementById('import-statut');
+      const choixEl = document.getElementById('import-choix');
+
+      if (!brut) {
+        statut.style.display = 'block';
+        statut.textContent = "Aucune simulation trouvée sur cet appareil. Va d'abord sur l'onglet Rentabilité pour calculer un rendement.";
+        return;
+      }
+
+      const donnees = JSON.parse(brut);
+      if (!donnees.tranches || donnees.tranches.length === 0) {
+        statut.style.display = 'block';
+        statut.textContent = 'Simulation trouvée mais vide, recalcule sur l\'onglet Rentabilité.';
+        return;
+      }
+
+      if (donnees.tranches.length === 1) {
+        appliquerTranche(donnees, donnees.tranches[0]);
+        return;
+      }
+
+      // Cascade : chaque tranche sort une année différente, donc c'est un évènement fiscal distinct à choisir.
+      choixEl.innerHTML = '<div class="note" style="margin-bottom:8px;">Cette simulation contient plusieurs tranches (cascade) — laquelle sort cette année-là ?</div>' +
+        donnees.tranches.map((t, i) => `
+          <button type="button" class="choix-tranche" data-i="${i}">
+            ${t.duree} ans — sortie ${t.annee_perception} (${t.age_perception} ans) — plus-value ${formatEurosImport(t.gain_potentiel)}
+          </button>
+        `).join('');
+      choixEl.style.display = 'block';
+      choixEl.querySelectorAll('.choix-tranche').forEach(btn => {
+        btn.addEventListener('click', () => appliquerTranche(donnees, donnees.tranches[parseInt(btn.dataset.i, 10)]));
+      });
+    });
   </script>
 </body>
 </html>

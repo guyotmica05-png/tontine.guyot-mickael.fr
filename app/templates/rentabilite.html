@@ -13,11 +13,6 @@
       background: none; border: 1px solid #ccc; color: #a3232b; border-radius: 6px;
       padding: 9px 12px; cursor: pointer; font-size: 13px; height: 42px;
     }
-    .btn-secondary {
-      background: #fff; color: var(--navy); border: 1px solid var(--navy); border-radius: 6px;
-      padding: 10px 18px; font-size: 14px; cursor: pointer; margin-top: 6px;
-    }
-    .btn-secondary:hover { background: var(--navy-light); }
     table.detail { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 12.5px; }
     table.detail th { background: var(--navy); color: #fff; text-align: left; padding: 8px 10px; font-size: 10.5px; text-transform: uppercase; }
     table.detail td { padding: 8px 10px; border-bottom: 1px solid #eee; }
@@ -275,6 +270,25 @@
 
       resultatsEl.style.display = 'block';
       btnPdf.disabled = false;
+
+      try {
+        localStorage.setItem('tontine_dernier_calcul_rentabilite', JSON.stringify({
+          age,
+          situation: situationEl.value,
+          encours_total: parseFloat(encoursEl.value) || 0,
+          client_nom: clientNomEl.value,
+          cascade: r.cascade,
+          tranches: r.tranches.map(t => ({
+            duree: t.duree,
+            montant: t.montant,
+            annee_perception: t.annee_perception,
+            age_perception: t.age_perception,
+            gain_potentiel: t.gain_potentiel,
+          })),
+          total_gain_potentiel: r.total_gain_potentiel,
+          enregistre_le: new Date().toISOString(),
+        }));
+      } catch (e) { /* localStorage indisponible : tant pis, pas bloquant */ }
     }
 
     btnPdf.addEventListener('click', async () => {
