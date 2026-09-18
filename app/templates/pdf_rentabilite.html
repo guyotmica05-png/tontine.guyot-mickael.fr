@@ -24,8 +24,8 @@
   .tile .val { font-family: Georgia, serif; font-size: 22px; color: var(--navy); margin-top: 4px; }
 
   table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-  th { background: var(--navy); color: #fff; text-align: left; padding: 9px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; }
-  td { padding: 9px 12px; border-bottom: 1px solid #e4e4e4; font-size: 12.5px; }
+  th { background: var(--navy); color: #fff; text-align: left; padding: 7px 8px; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.02em; }
+  td { padding: 7px 8px; border-bottom: 1px solid #e4e4e4; font-size: 11px; white-space: nowrap; }
   tr.total td { font-weight: 700; background: var(--navy-light); border-bottom: none; }
 
   .frise-section { break-inside: avoid; margin-top: 32px; }
@@ -55,15 +55,17 @@
     </div>
     {% endif %}
 
-    <div class="section-title">{{ "Hypothèses de simulation — " ~ r.tranches|length ~ " tranches (cascade)" if r.cascade else "Hypothèses de simulation" }}</div>
+    <div class="section-title">{{ "Hypothèses de simulation — " ~ r.tranches|length ~ " tontines (cascade)" if r.cascade else "Hypothèses de simulation" }}</div>
     <table>
       <thead>
         <tr>
-          <th>Tranche</th>
+          <th>Tontine</th>
           <th>Montant</th>
           <th>Durée</th>
-          <th>Âge sortie</th>
+          <th>Âge</th>
           <th>Répartition</th>
+          <th>Mensuel</th>
+          <th>Clôture</th>
           <th>Assurance</th>
           <th>Investi total</th>
           <th>Bénéfices</th>
@@ -74,11 +76,13 @@
       <tbody>
         {% for t in r.tranches %}
         <tr>
-          <td>{{ t.age }} → {{ t.age_perception }} ans ({{ t.annee_placement }}–{{ t.annee_perception }})</td>
+          <td>Tontine {{ loop.index }}</td>
           <td>{{ "{:,.0f}".format(t.montant).replace(",", " ") }} €</td>
           <td>{{ t.duree }} ans</td>
           <td>{{ t.age_perception }} ans</td>
           <td>{{ "{:,.0f}".format(t.repartition_potentielle).replace(",", " ") }} €</td>
+          <td>{{ "{:,.0f}".format(t.mensuel).replace(",", " ") }} €</td>
+          <td>{{ t.annee_perception }}</td>
           <td>{{ "{:,.0f}".format(t.cout_assurance).replace(",", " ") }} €</td>
           <td>{{ "{:,.0f}".format(t.investissement_total).replace(",", " ") }} €</td>
           <td>{{ "{:,.0f}".format(t.benefices).replace(",", " ") }} €</td>
@@ -93,6 +97,8 @@
           <td>—</td>
           <td>—</td>
           <td>{{ "{:,.0f}".format(r.total_repartition_potentielle).replace(",", " ") }} €</td>
+          <td>{{ "{:,.0f}".format(r.total_mensuel).replace(",", " ") }} €</td>
+          <td>—</td>
           <td>{{ "{:,.0f}".format(r.total_cout_assurance).replace(",", " ") }} €</td>
           <td>{{ "{:,.0f}".format(r.total_investissement_total).replace(",", " ") }} €</td>
           <td>{{ "{:,.0f}".format(r.total_benefices).replace(",", " ") }} €</td>

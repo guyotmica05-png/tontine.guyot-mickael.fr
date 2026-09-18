@@ -229,6 +229,7 @@ def calculer_rentabilite(montant: float, age: int, duree: int) -> dict:
     gain_potentiel = repartition_potentielle - montant
     investissement_total = montant + cout_assurance
     benefices = repartition_potentielle - investissement_total
+    mensuel = repartition_potentielle / 12
 
     return {
         "montant": montant,
@@ -236,6 +237,7 @@ def calculer_rentabilite(montant: float, age: int, duree: int) -> dict:
         "duree": duree,
         "coefficient": coefficient,
         "repartition_potentielle": round(repartition_potentielle, 2),
+        "mensuel": round(mensuel, 2),
         "gain_potentiel": round(gain_potentiel, 2),
         "cout_assurance": round(cout_assurance, 2),
         "investissement_total": round(investissement_total, 2),
@@ -292,6 +294,7 @@ def calculer_cascade(
         "tranches": resultats,
         "total_montant": total("montant"),
         "total_repartition_potentielle": total("repartition_potentielle"),
+        "total_mensuel": total("mensuel"),
         "total_gain_potentiel": total("gain_potentiel"),
         "total_cout_assurance": total("cout_assurance"),
         "total_investissement_total": total("investissement_total"),

@@ -14,7 +14,7 @@
       padding: 9px 12px; cursor: pointer; font-size: 13px; height: 42px;
     }
     .table-scroll { overflow-x: auto; margin-top: 14px; -webkit-overflow-scrolling: touch; }
-    table.detail { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 12.5px; }
+    table.detail { width: 100%; min-width: 940px; border-collapse: collapse; font-size: 12.5px; }
     table.detail th { background: var(--navy); color: #fff; text-align: left; padding: 8px 10px; font-size: 10.5px; text-transform: uppercase; white-space: nowrap; }
     table.detail td { padding: 8px 10px; border-bottom: 1px solid #eee; white-space: nowrap; }
     table.detail tr.total td { font-weight: 700; background: var(--navy-light); }
@@ -91,9 +91,9 @@
           <table class="detail" id="table-detail">
             <thead>
               <tr>
-                <th>Tranche</th><th>Montant</th><th>Durée</th><th>Âge sortie</th>
-                <th>Répartition</th><th>Assurance</th><th>Investi total</th>
-                <th>Bénéfices</th><th>Fiscalité est.</th><th>Bénéfices nets</th>
+                <th>Tontine</th><th>Montant</th><th>Durée</th><th>Âge</th>
+                <th>Répartition</th><th>Mensuel</th><th>Clôture</th><th>Assurance</th>
+                <th>Investi total</th><th>Bénéfices</th><th>Fiscalité est.</th><th>Bénéfices nets</th>
               </tr>
             </thead>
             <tbody id="table-detail-body"></tbody>
@@ -240,38 +240,42 @@
       const tableScroll = document.getElementById('table-scroll');
       const scrollHint = document.getElementById('scroll-hint');
       const friseContainer = document.getElementById('frise-container');
+
+      tbody.innerHTML = r.tranches.map((t, i) => `
+        <tr>
+          <td>Tontine ${i + 1}</td>
+          <td>${formatEuros(t.montant)}</td>
+          <td>${t.duree} ans</td>
+          <td>${t.age_perception} ans</td>
+          <td>${formatEuros(t.repartition_potentielle)}</td>
+          <td>${formatEuros(t.mensuel)}</td>
+          <td>${t.annee_perception}</td>
+          <td>${formatEuros(t.cout_assurance)}</td>
+          <td>${formatEuros(t.investissement_total)}</td>
+          <td>${formatEuros(t.benefices)}</td>
+          <td>${formatEuros(t.fiscalite_estimee)}</td>
+          <td>${formatEuros(t.benefices_net)}</td>
+        </tr>
+      `).join('') + (r.cascade ? `
+        <tr class="total">
+          <td>Total</td>
+          <td>${formatEuros(r.total_montant)}</td>
+          <td>—</td><td>—</td>
+          <td>${formatEuros(r.total_repartition_potentielle)}</td>
+          <td>${formatEuros(r.total_mensuel)}</td>
+          <td>—</td>
+          <td>${formatEuros(r.total_cout_assurance)}</td>
+          <td>${formatEuros(r.total_investissement_total)}</td>
+          <td>${formatEuros(r.total_benefices)}</td>
+          <td>${formatEuros(r.total_fiscalite_estimee)}</td>
+          <td>${formatEuros(r.total_benefices_net)}</td>
+        </tr>` : '');
+
+      tableScroll.style.display = 'block';
+      scrollHint.style.display = 'block';
       if (r.cascade) {
-        tbody.innerHTML = r.tranches.map(t => `
-          <tr>
-            <td>${t.age} → ${t.age_perception} ans (${t.annee_placement}–${t.annee_perception})</td>
-            <td>${formatEuros(t.montant)}</td>
-            <td>${t.duree} ans</td>
-            <td>${t.age_perception} ans</td>
-            <td>${formatEuros(t.repartition_potentielle)}</td>
-            <td>${formatEuros(t.cout_assurance)}</td>
-            <td>${formatEuros(t.investissement_total)}</td>
-            <td>${formatEuros(t.benefices)}</td>
-            <td>${formatEuros(t.fiscalite_estimee)}</td>
-            <td>${formatEuros(t.benefices_net)}</td>
-          </tr>
-        `).join('') + `
-          <tr class="total">
-            <td>Total</td>
-            <td>${formatEuros(r.total_montant)}</td>
-            <td>—</td><td>—</td>
-            <td>${formatEuros(r.total_repartition_potentielle)}</td>
-            <td>${formatEuros(r.total_cout_assurance)}</td>
-            <td>${formatEuros(r.total_investissement_total)}</td>
-            <td>${formatEuros(r.total_benefices)}</td>
-            <td>${formatEuros(r.total_fiscalite_estimee)}</td>
-            <td>${formatEuros(r.total_benefices_net)}</td>
-          </tr>`;
-        tableScroll.style.display = 'block';
-        scrollHint.style.display = 'block';
         friseContainer.innerHTML = r.frise_svg;
       } else {
-        tableScroll.style.display = 'none';
-        scrollHint.style.display = 'none';
         friseContainer.innerHTML = '';
       }
 
