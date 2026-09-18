@@ -13,12 +13,13 @@
       background: none; border: 1px solid #ccc; color: #a3232b; border-radius: 6px;
       padding: 9px 12px; cursor: pointer; font-size: 13px; height: 42px;
     }
-    table.detail { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 12.5px; }
-    table.detail th { background: var(--navy); color: #fff; text-align: left; padding: 8px 10px; font-size: 10.5px; text-transform: uppercase; }
-    table.detail td { padding: 8px 10px; border-bottom: 1px solid #eee; }
+    .table-scroll { overflow-x: auto; margin-top: 14px; -webkit-overflow-scrolling: touch; }
+    table.detail { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 12.5px; }
+    table.detail th { background: var(--navy); color: #fff; text-align: left; padding: 8px 10px; font-size: 10.5px; text-transform: uppercase; white-space: nowrap; }
+    table.detail td { padding: 8px 10px; border-bottom: 1px solid #eee; white-space: nowrap; }
     table.detail tr.total td { font-weight: 700; background: var(--navy-light); }
-    #frise-container { overflow-x: auto; margin-top: 16px; }
-    #frise-container svg { max-width: 100%; }
+    #frise-container { overflow-x: auto; margin-top: 16px; -webkit-overflow-scrolling: touch; }
+    .scroll-hint { font-size: 11px; color: #888; margin-top: 4px; }
     .sous-note { font-size: 12px; color: #666; margin-top: 10px; }
   </style>
 </head>
@@ -86,16 +87,19 @@
           </div>
         </div>
 
-        <table class="detail" id="table-detail" style="display:none;">
-          <thead>
-            <tr>
-              <th>Tranche</th><th>Montant</th><th>Durée</th><th>Coef.</th>
-              <th>Répartition</th><th>Assurance</th><th>Investi total</th>
-              <th>Bénéfices</th><th>Fiscalité est.</th><th>Bénéfices nets</th>
-            </tr>
-          </thead>
-          <tbody id="table-detail-body"></tbody>
-        </table>
+        <div class="table-scroll" id="table-scroll" style="display:none;">
+          <table class="detail" id="table-detail">
+            <thead>
+              <tr>
+                <th>Tranche</th><th>Montant</th><th>Durée</th><th>Coef.</th>
+                <th>Répartition</th><th>Assurance</th><th>Investi total</th>
+                <th>Bénéfices</th><th>Fiscalité est.</th><th>Bénéfices nets</th>
+              </tr>
+            </thead>
+            <tbody id="table-detail-body"></tbody>
+          </table>
+        </div>
+        <div class="scroll-hint" id="scroll-hint" style="display:none;">→ fais glisser le tableau horizontalement pour voir toutes les colonnes</div>
 
         <div class="sous-note" id="note-fiscalite"></div>
 
@@ -233,7 +237,8 @@
         `Fiscalité estimée : PFNL forfaitaire ${(r.taux_pfnl_applique*100).toFixed(1)} % sur les gains au-delà de l'abattement annuel (${formatEuros(r.abattement_applique)}), appliqué par tranche. Estimation indicative — pour l'arbitrage complet avec le barème progressif selon la TMI du client, voir l'onglet Fiscalité de sortie.`;
 
       const tbody = document.getElementById('table-detail-body');
-      const table = document.getElementById('table-detail');
+      const tableScroll = document.getElementById('table-scroll');
+      const scrollHint = document.getElementById('scroll-hint');
       const friseContainer = document.getElementById('frise-container');
       if (r.cascade) {
         tbody.innerHTML = r.tranches.map(t => `
@@ -261,10 +266,12 @@
             <td>${formatEuros(r.total_fiscalite_estimee)}</td>
             <td>${formatEuros(r.total_benefices_net)}</td>
           </tr>`;
-        table.style.display = 'table';
+        tableScroll.style.display = 'block';
+        scrollHint.style.display = 'block';
         friseContainer.innerHTML = r.frise_svg;
       } else {
-        table.style.display = 'none';
+        tableScroll.style.display = 'none';
+        scrollHint.style.display = 'none';
         friseContainer.innerHTML = '';
       }
 

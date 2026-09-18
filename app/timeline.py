@@ -16,7 +16,7 @@ def frise_svg(cascade: dict) -> str:
     annee_depart = cascade["annee_placement"]
 
     left_margin = 190
-    right_margin = 30
+    right_margin = 210
     top_margin = 24
     row_height = 58
     bar_height = 22
