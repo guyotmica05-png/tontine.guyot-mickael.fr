@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #1c1c1c; }
+  :root { --navy: #1A2744; --navy-mid: #2D3F6B; --navy-light: #EEF1F8; --gold: #B8983A; --gold-light: #F5EED6; }
+
+  .cover { background: var(--navy); color: #fff; padding: 48px 56px 36px; }
+  .cover img { height: 44px; margin-bottom: 28px; }
+  .cover .label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); margin-bottom: 10px; font-weight: 600; }
+  .cover h1 { font-family: Georgia, serif; font-weight: 400; font-size: 26px; margin: 0 0 6px; }
+  .cover .meta { font-size: 13px; color: rgba(255,255,255,0.75); }
+
+  .body { padding: 40px 56px; }
+  .section-title { font-family: Georgia, serif; font-size: 18px; color: var(--navy); margin: 0 0 18px; }
+
+  .grid { display: flex; gap: 16px; margin-bottom: 24px; }
+  .tile { flex: 1; background: var(--navy-light); border-radius: 8px; padding: 18px 20px; border-left: 4px solid var(--gold); }
+  .tile.navy { border-left-color: var(--navy); }
+  .tile .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--navy-mid); }
+  .tile .val { font-family: Georgia, serif; font-size: 24px; color: var(--navy); margin-top: 4px; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th { background: var(--navy); color: #fff; text-align: left; padding: 10px 14px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
+  td { padding: 10px 14px; border-bottom: 1px solid #e4e4e4; font-size: 13px; }
+
+  .exemple-banner { background: #fff3cd; border: 1px solid #f0d68a; color: #7a5c00; border-radius: 6px; padding: 12px 16px; font-size: 12px; margin-bottom: 24px; }
+
+  .mentions { font-size: 10px; color: #777; line-height: 1.6; margin-top: 40px; }
+
+  .footer { background: var(--navy); color: rgba(255,255,255,0.5); text-align: center; padding: 20px; font-size: 10px; letter-spacing: 0.5px; position: fixed; bottom: 0; left: 0; right: 0; }
+</style>
+</head>
+<body>
+  <div class="cover">
+    <img src="data:image/png;base64,{{ logo_b64 }}" alt="Le Conservateur" />
+    <div class="label">Simulation de rentabilité</div>
+    <h1>Tontine{% if client_nom %} — {{ client_nom }}{% endif %}</h1>
+    <div class="meta">Document généré le {{ date_str }} — projection non contractuelle</div>
+  </div>
+
+  <div class="body">
+    {% if r.donnees_exemple %}
+    <div class="exemple-banner">
+      Document de test — coefficients d'exemple, en attente des tableaux de rentabilité et de tarification définitifs.
+    </div>
+    {% endif %}
+
+    <div class="section-title">Hypothèses de simulation</div>
+    <table>
+      <tr><td>Montant placé</td><td>{{ "{:,.0f}".format(r.montant).replace(",", " ") }} €</td></tr>
+      <tr><td>Âge du client</td><td>{{ r.age }} ans</td></tr>
+      <tr><td>Durée de la tontine</td><td>{{ r.duree }} ans</td></tr>
+      <tr><td>Coefficient de rentabilité appliqué</td><td>{{ r.coefficient }}</td></tr>
+    </table>
+
+    <div class="section-title" style="margin-top:32px;">Résultats</div>
+    <div class="grid">
+      <div class="tile navy">
+        <div class="lbl">Répartition potentielle reçue</div>
+        <div class="val">{{ "{:,.0f}".format(r.repartition_potentielle).replace(",", " ") }} €</div>
+      </div>
+      <div class="tile">
+        <div class="lbl">Gain potentiel</div>
+        <div class="val">{{ "{:,.0f}".format(r.gain_potentiel).replace(",", " ") }} €</div>
+      </div>
+      <div class="tile">
+        <div class="lbl">Coût de l'assurance</div>
+        <div class="val">{{ "{:,.0f}".format(r.cout_assurance).replace(",", " ") }} €</div>
+      </div>
+    </div>
+
+    <div class="mentions">
+      Simulation non contractuelle, réalisée à titre indicatif sur la base des coefficients de rentabilité passée et de la tarification en vigueur à la date de simulation. La rentabilité effective d'une tontine dépend de la mutualisation entre les membres de la génération et ne peut être garantie. Document réservé à un usage interne / RDV client, à ne pas diffuser hors de ce cadre. Le Conservateur — société d'assurance mutuelle sur la vie à cotisations fixes régie par le Code des assurances.
+    </div>
+  </div>
+
+  <div class="footer">Agence Guyot — Le Conservateur — document confidentiel</div>
+</body>
+</html>

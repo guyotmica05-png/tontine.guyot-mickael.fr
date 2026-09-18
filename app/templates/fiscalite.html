@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Tontine — Fiscalité de sortie</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Tontine — Agence Guyot</h1>
+    <nav>
+      <a href="/rentabilite">Rentabilité</a>
+      <a href="/fiscalite" class="active">Fiscalité de sortie</a>
+      <form method="POST" action="/logout"><button class="logout" type="submit">Se déconnecter</button></form>
+    </nav>
+  </header>
+
+  <main>
+    <div class="card">
+      <h2>Choix fiscal à la sortie — IR barème ou PFNL</h2>
+      <div class="note" style="margin-top:-8px; margin-bottom:20px;">
+        Régime applicable aux primes versées à compter du 27/09/2017 (art. 125-0 A CGI, par assimilation aux contrats de capitalisation). Calcul 100% local, aucune IA, aucune donnée envoyée au serveur.
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label for="gains">Montant des gains à la sortie (intérêts, hors capital)</label>
+          <input type="number" id="gains" min="0" step="100" value="10000" />
+        </div>
+        <div class="field">
+          <label for="situation">Situation familiale</label>
+          <select id="situation">
+            <option value="seul">Célibataire (abattement 4 600 €)</option>
+            <option value="couple">Marié / pacsé (abattement 9 200 €)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label for="tmi">Tranche marginale d'imposition (TMI) du client</label>
+          <select id="tmi">
+            <option value="0">0 %</option>
+            <option value="11">11 %</option>
+            <option value="30" selected>30 %</option>
+            <option value="41">41 %</option>
+            <option value="45">45 %</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="encours">Encours total tous contrats de capitalisation / assurance-vie du client</label>
+          <input type="number" id="encours" min="0" step="1000" value="80000" />
+        </div>
+      </div>
+
+      <div class="note" id="note-taux"></div>
+
+      <div class="reco-block">
+        <div class="titre">Option la plus favorable</div>
+        <div class="choix" id="choix">—</div>
+        <div class="detail" id="detail">—</div>
+      </div>
+
+      <div class="result-grid">
+        <div class="result-tile">
+          <div class="label">Total impôt + PS — IR barème (TMI)</div>
+          <div class="value" id="val-bareme">—</div>
+        </div>
+        <div class="result-tile">
+          <div class="label">Total impôt + PS — PFNL</div>
+          <div class="value" id="val-forfait">—</div>
+        </div>
+      </div>
+
+      <div class="note">
+        Les prélèvements sociaux (17,2 %) s'appliquent dans les deux cas sur la totalité des gains, sans abattement. L'abattement annuel ne réduit que la base de l'impôt sur le revenu, dans les deux options. L'option barème progressif, si elle est choisie, est globale et irrévocable pour l'ensemble des revenus de capitaux mobiliers du client sur l'année — à rappeler au client avant de trancher.
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const SEUIL_ENCOURS = 150000;
+    const TAUX_BAS = 0.075;
+    const TAUX_HAUT = 0.128;
+    const PS = 0.172;
+
+    const els = {
+      gains: document.getElementById('gains'),
+      situation: document.getElementById('situation'),
+      tmi: document.getElementById('tmi'),
+      encours: document.getElementById('encours'),
+    };
+
+    function formatEuros(v) {
+      return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
+    }
+
+    function calculer() {
+      const gains = parseFloat(els.gains.value) || 0;
+      const abattement = els.situation.value === 'couple' ? 9200 : 4600;
+      const tmi = parseFloat(els.tmi.value) / 100;
+      const encours = parseFloat(els.encours.value) || 0;
+      const tauxForfait = encours <= SEUIL_ENCOURS ? TAUX_BAS : TAUX_HAUT;
+
+      const baseIR = Math.max(0, gains - abattement);
+      const ps = gains * PS;
+      const impotBareme = baseIR * tmi;
+      const impotForfait = baseIR * tauxForfait;
+      const totalBareme = impotBareme + ps;
+      const totalForfait = impotForfait + ps;
+
+      document.getElementById('note-taux').textContent =
+        `Taux PFNL applicable : ${(tauxForfait * 100).toFixed(1)} % (encours ${encours <= SEUIL_ENCOURS ? '≤' : '>'} 150 000 €). Base imposable à l'IR après abattement : ${formatEuros(baseIR)}.`;
+
+      document.getElementById('val-bareme').textContent = formatEuros(totalBareme);
+      document.getElementById('val-forfait').textContent = formatEuros(totalForfait);
+
+      const choixEl = document.getElementById('choix');
+      const detailEl = document.getElementById('detail');
+      const ecart = Math.abs(totalBareme - totalForfait);
+
+      if (baseIR === 0) {
+        choixEl.textContent = 'Indifférent';
+        detailEl.textContent = `Gains sous l'abattement (${formatEuros(abattement)}) : aucun impôt sur le revenu dans les deux options, seuls les prélèvements sociaux (${formatEuros(ps)}) restent dus.`;
+      } else if (totalBareme < totalForfait) {
+        choixEl.textContent = 'IR au barème progressif';
+        detailEl.textContent = `Économie estimée de ${formatEuros(ecart)} par rapport au PFNL (TMI ${(tmi*100).toFixed(0)} % < taux PFNL ${(tauxForfait*100).toFixed(1)} %).`;
+      } else if (totalForfait < totalBareme) {
+        choixEl.textContent = 'Prélèvement forfaitaire non libératoire (PFNL)';
+        detailEl.textContent = `Économie estimée de ${formatEuros(ecart)} par rapport au barème (taux PFNL ${(tauxForfait*100).toFixed(1)} % < TMI ${(tmi*100).toFixed(0)} %).`;
+      } else {
+        choixEl.textContent = 'Indifférent';
+        detailEl.textContent = 'Les deux options aboutissent au même montant.';
+      }
+    }
+
+    Object.values(els).forEach(el => el.addEventListener('input', calculer));
+    calculer();
+  </script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Tontine — Connexion</title>
+  <style>
+    :root { --navy: #1A2744; --navy-light: #2D3F6B; --gold: #B8983A; --bg: #f4f5f7; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: var(--navy); font-family: Georgia, "Times New Roman", serif;
+    }
+    .card {
+      background: #fff; border-radius: 6px; padding: 2.5rem 2.5rem 2rem; width: 100%; max-width: 360px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.35); border-top: 4px solid var(--gold);
+    }
+    h1 { color: var(--navy); font-size: 1.3rem; margin: 0 0 1.5rem; letter-spacing: 0.03em; }
+    label { display: block; font-size: 0.85rem; color: #444; margin-bottom: 0.3rem; font-family: Arial, sans-serif; }
+    input {
+      width: 100%; padding: 0.6rem 0.7rem; margin-bottom: 1.1rem; border: 1px solid #ccc; border-radius: 4px;
+      font-size: 1rem; font-family: Arial, sans-serif;
+    }
+    input:focus { outline: none; border-color: var(--gold); }
+    button {
+      width: 100%; padding: 0.7rem; background: var(--navy); color: #fff; border: none; border-radius: 4px;
+      font-size: 1rem; cursor: pointer; font-family: Arial, sans-serif; letter-spacing: 0.03em;
+    }
+    button:hover { background: var(--navy-light); }
+    .error { color: #a3232b; font-size: 0.85rem; margin-bottom: 1rem; font-family: Arial, sans-serif; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Tontine — Agence Guyot</h1>
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <form method="POST" action="/login">
+      <label for="username">Identifiant</label>
+      <input type="text" id="username" name="username" autocomplete="username" required />
+      <label for="password">Mot de passe</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" required />
+      <button type="submit">Se connecter</button>
+    </form>
+  </div>
+</body>
+</html>

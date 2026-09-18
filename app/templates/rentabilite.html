@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Tontine — Rentabilité potentielle</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Tontine — Agence Guyot</h1>
+    <nav>
+      <a href="/rentabilite" class="active">Rentabilité</a>
+      <a href="/fiscalite">Fiscalité de sortie</a>
+      <form method="POST" action="/logout"><button class="logout" type="submit">Se déconnecter</button></form>
+    </nav>
+  </header>
+
+  <main>
+    <div class="card">
+      <h2>Simulation de rentabilité potentielle</h2>
+
+      {% if donnees_exemple %}
+      <div class="badge-exemple">
+        ⚠️ Les coefficients utilisés ici sont des données d'EXEMPLE (non réelles). En attente des deux tableaux Excel de Mickaël (rentabilité passée + tarifs assurance) pour les remplacer.
+      </div>
+      {% endif %}
+
+      <div class="form-row">
+        <div class="field">
+          <label for="client_nom">Nom du client (optionnel, pour le PDF)</label>
+          <input type="text" id="client_nom" placeholder="Ex. M. Dupont" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label for="montant">Montant à investir (€)</label>
+          <input type="number" id="montant" min="0" step="100" value="10000" />
+        </div>
+        <div class="field">
+          <label for="duree">Durée de la tontine</label>
+          <select id="duree">
+            {% for d in durees %}
+            <option value="{{ d }}">{{ d }} ans</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="age">Âge du client</label>
+          <select id="age"></select>
+        </div>
+      </div>
+
+      <div id="erreur" class="note" style="color:#a3232b; display:none;"></div>
+
+      <div class="result-grid" id="resultats" style="display:none;">
+        <div class="result-tile navy">
+          <div class="label">Répartition potentielle reçue</div>
+          <div class="value" id="val-repartition">—</div>
+        </div>
+        <div class="result-tile">
+          <div class="label">Gain potentiel</div>
+          <div class="value" id="val-gain">—</div>
+        </div>
+        <div class="result-tile">
+          <div class="label">Coût de l'assurance</div>
+          <div class="value" id="val-assurance">—</div>
+        </div>
+      </div>
+
+      <div class="note">
+        Coefficient appliqué : <span id="val-coef">—</span> — calcul déterministe, aucune IA.
+      </div>
+
+      <div style="margin-top:20px;">
+        <button class="primary" id="btn-pdf" disabled>Générer le PDF</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const montantEl = document.getElementById('montant');
+    const dureeEl = document.getElementById('duree');
+    const ageEl = document.getElementById('age');
+    const clientNomEl = document.getElementById('client_nom');
+    const erreurEl = document.getElementById('erreur');
+    const resultatsEl = document.getElementById('resultats');
+    const btnPdf = document.getElementById('btn-pdf');
+
+    let dernierResultat = null;
+
+    async function chargerAges() {
+      const duree = dureeEl.value;
+      const resp = await fetch(`/api/ages-disponibles?duree=${duree}`);
+      const data = await resp.json();
+      ageEl.innerHTML = '';
+      for (const a of data.ages) {
+        const opt = document.createElement('option');
+        opt.value = a;
+        opt.textContent = `${a} ans`;
+        ageEl.appendChild(opt);
+      }
+    }
+
+    function formatEuros(v) {
+      return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
+    }
+
+    async function calculer() {
+      erreurEl.style.display = 'none';
+      resultatsEl.style.display = 'none';
+      btnPdf.disabled = true;
+      dernierResultat = null;
+
+      const montant = parseFloat(montantEl.value);
+      const duree = parseInt(dureeEl.value, 10);
+      const age = parseInt(ageEl.value, 10);
+      if (!montant || !duree || !age) return;
+
+      const resp = await fetch('/api/calcul-rentabilite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ montant, duree, age }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: 'Erreur de calcul.' }));
+        erreurEl.textContent = err.detail;
+        erreurEl.style.display = 'block';
+        return;
+      }
+
+      const r = await resp.json();
+      dernierResultat = r;
+      document.getElementById('val-repartition').textContent = formatEuros(r.repartition_potentielle);
+      document.getElementById('val-gain').textContent = formatEuros(r.gain_potentiel);
+      document.getElementById('val-assurance').textContent = formatEuros(r.cout_assurance);
+      document.getElementById('val-coef').textContent = r.coefficient;
+      resultatsEl.style.display = 'flex';
+      btnPdf.disabled = false;
+    }
+
+    btnPdf.addEventListener('click', async () => {
+      if (!dernierResultat) return;
+      const resp = await fetch('/api/pdf-rentabilite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          montant: dernierResultat.montant,
+          duree: dernierResultat.duree,
+          age: dernierResultat.age,
+          client_nom: clientNomEl.value,
+        }),
+      });
+      if (!resp.ok) {
+        alert('Erreur lors de la génération du PDF.');
+        return;
+      }
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'simulation_tontine.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    dureeEl.addEventListener('change', async () => { await chargerAges(); await calculer(); });
+    ageEl.addEventListener('change', calculer);
+    montantEl.addEventListener('input', calculer);
+
+    (async () => { await chargerAges(); await calculer(); })();
+  </script>
+</body>
+</html>
