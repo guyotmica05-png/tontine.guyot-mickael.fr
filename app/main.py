@@ -14,12 +14,12 @@ Règles :
 import io
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import auth, data
+from . import data
 from .pdf import render_pdf_rentabilite
 from .timeline import frise_svg
 
@@ -34,82 +34,31 @@ def health():
     return {"status": "ok"}
 
 
-def _client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for", "")
-    if forwarded:
-        return forwarded.split(",")[-1].strip()
-    return request.client.host if request.client else "unknown"
-
-
-def require_session(request: Request) -> None:
-    if not auth.is_valid_session(request.cookies.get(auth.SESSION_COOKIE)):
-        raise HTTPException(status_code=303, headers={"Location": "/login"})
-
-
-@app.exception_handler(HTTPException)
-async def redirect_on_auth(request: Request, exc: HTTPException):
-    if exc.status_code == 303 and exc.headers and exc.headers.get("Location") == "/login":
-        return RedirectResponse("/login", status_code=303)
-    raise exc
-
-
-# --- Authentification ---------------------------------------------------
-
-
-@app.get("/login")
-def login_form(request: Request):
-    if auth.is_valid_session(request.cookies.get(auth.SESSION_COOKIE)):
-        return RedirectResponse("/", status_code=303)
-    return templates.TemplateResponse(request, "login.html", {"error": None})
-
-
-@app.post("/login")
-def login_submit(request: Request, username: str = Form(...), password: str = Form(...)):
-    ip = _client_ip(request)
-    if auth.is_locked_out(ip):
-        return templates.TemplateResponse(
-            request,
-            "login.html",
-            {"error": "Trop de tentatives, réessaie dans quelques minutes."},
-            status_code=429,
-        )
-    if auth.check_credentials(username, password):
-        auth.clear_failures(ip)
-        token = auth.create_session()
-        response = RedirectResponse("/", status_code=303)
-        response.set_cookie(
-            auth.SESSION_COOKIE, token, httponly=True, secure=True, samesite="lax", path="/"
-        )
-        return response
-    auth.register_failure(ip)
-    return templates.TemplateResponse(
-        request, "login.html", {"error": "Identifiants incorrects."}, status_code=401
-    )
+# --- Authentification : contrôlée en amont par Traefik (forwardAuth -> gm-auth) ----
+# Aucun accès n'arrive ici sans session valide ; la connexion et la déconnexion
+# se font sur guyot-mickael.fr, avec un seul identifiant pour tous les sites.
 
 
 @app.post("/logout")
-def logout(request: Request):
-    auth.destroy_session(request.cookies.get(auth.SESSION_COOKIE))
-    response = RedirectResponse("/login", status_code=303)
-    response.delete_cookie(auth.SESSION_COOKIE, path="/")
-    return response
+def logout():
+    return RedirectResponse("https://guyot-mickael.fr/logout", status_code=303)
 
 
 # --- Pages ----------------------------------------------------------------
 
 
 @app.get("/")
-def home(request: Request, _: None = Depends(require_session)):
+def home(request: Request):
     return RedirectResponse("/rentabilite", status_code=303)
 
 
 @app.get("/rentabilite")
-def page_rentabilite(request: Request, _: None = Depends(require_session)):
+def page_rentabilite(request: Request):
     return templates.TemplateResponse(request, "rentabilite.html", {})
 
 
 @app.get("/fiscalite")
-def page_fiscalite(request: Request, _: None = Depends(require_session)):
+def page_fiscalite(request: Request):
     return templates.TemplateResponse(request, "fiscalite.html", {})
 
 
@@ -117,7 +66,7 @@ def page_fiscalite(request: Request, _: None = Depends(require_session)):
 
 
 @app.get("/api/durees-disponibles")
-def api_durees(age: int, _: None = Depends(require_session)):
+def api_durees(age: int):
     return {"durees": data.durees_disponibles_pour_age(age)}
 
 
@@ -133,7 +82,7 @@ def _parse_cascade_payload(payload: dict) -> dict:
 
 
 @app.post("/api/calcul-rentabilite")
-async def api_calcul_rentabilite(request: Request, _: None = Depends(require_session)):
+async def api_calcul_rentabilite(request: Request):
     payload = await request.json()
     try:
         resultat = _parse_cascade_payload(payload)
@@ -144,7 +93,7 @@ async def api_calcul_rentabilite(request: Request, _: None = Depends(require_ses
 
 
 @app.post("/api/pdf-rentabilite")
-async def api_pdf_rentabilite(request: Request, _: None = Depends(require_session)):
+async def api_pdf_rentabilite(request: Request):
     payload = await request.json()
     try:
         resultat = _parse_cascade_payload(payload)
