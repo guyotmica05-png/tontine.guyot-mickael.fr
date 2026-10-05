@@ -106,8 +106,9 @@
         <div id="frise-container"></div>
       </div>
 
-      <div style="margin-top:20px;">
+      <div style="margin-top:20px; display:flex; gap:12px;">
         <button class="primary" id="btn-pdf" disabled>Générer le PDF</button>
+        <button class="btn-secondary" id="btn-proposition" disabled>→ Passer à la proposition commerciale</button>
       </div>
     </div>
   </main>
@@ -122,6 +123,7 @@
     const erreurEl = document.getElementById('erreur');
     const resultatsEl = document.getElementById('resultats');
     const btnPdf = document.getElementById('btn-pdf');
+    const btnProposition = document.getElementById('btn-proposition');
 
     let dernierResultat = null;
 
@@ -201,6 +203,7 @@
       erreurEl.style.display = 'none';
       resultatsEl.style.display = 'none';
       btnPdf.disabled = true;
+      btnProposition.disabled = true;
       dernierResultat = null;
 
       const age = parseInt(ageEl.value, 10);
@@ -281,6 +284,7 @@
 
       resultatsEl.style.display = 'block';
       btnPdf.disabled = false;
+      btnProposition.disabled = false;
 
       try {
         localStorage.setItem('tontine_dernier_calcul_rentabilite', JSON.stringify({
@@ -329,7 +333,58 @@
       URL.revokeObjectURL(url);
     });
 
+    // --- Passer à la proposition commerciale (proposition.guyot-mickael.fr) ---
+    // Les deux sites ont des sessions/domaines séparés, donc pas de stockage
+    // partagé : les données utiles (âge, situation, encours, tranches saisies,
+    // nom client) sont encodées en base64 dans l'URL. Le site proposition les
+    // relit au chargement puis retire aussitôt le paramètre de l'URL.
+    btnProposition.addEventListener('click', () => {
+      if (!dernierResultat) return;
+      const donnees = {
+        client_nom: clientNomEl.value,
+        age: parseInt(ageEl.value, 10),
+        situation: situationEl.value,
+        encours_total: parseFloat(encoursEl.value) || 0,
+        tranches: collecterTranches(),
+      };
+      const encode = btoa(unescape(encodeURIComponent(JSON.stringify(donnees))));
+      // encodeURIComponent est indispensable ici : le base64 peut contenir des
+      // '+' ou '/', qui seraient sinon mal interprétés dans l'URL (le '+' en
+      // particulier est lu comme un espace par le site de destination).
+      window.open(`https://proposition.guyot-mickael.fr/?from_tontine=${encodeURIComponent(encode)}`, '_blank');
+    });
+
     ajouterTranche(10000, null);
+
+    (function depuisCRM() {
+      const jeton = new URLSearchParams(location.search).get('crm');
+      if (!jeton) return;
+      history.replaceState(null, '', location.pathname);
+      function bandeau(texte, ok) {
+        const b = document.createElement('div');
+        b.style.cssText = 'margin:0 0 16px;padding:10px 14px;border-radius:6px;font-size:14px;border:1px solid ' + (ok ? '#b8923a;background:#faf6ec;color:#0a1f44' : '#a3232b;background:#fbeeee;color:#a3232b');
+        b.textContent = texte;
+        document.querySelector('main').prepend(b);
+      }
+      function remplir(id, valeur) {
+        const el = document.getElementById(id);
+        if (!el || valeur === null || valeur === undefined || valeur === '') return false;
+        el.value = valeur;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      }
+      fetch('https://crm.guyot-mickael.fr/api/fiche/' + encodeURIComponent(jeton))
+        .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erreur || 'Erreur'); return d; }); })
+        .then(function (d) {
+          const repris = [];
+          if (remplir('client_nom', d.nom_affiche)) repris.push('nom');
+          if (d.age !== null && remplir('age', d.age)) repris.push('âge ' + d.age + ' ans');
+          if (remplir('situation', d.en_couple ? 'couple' : 'seul')) repris.push(d.en_couple ? 'marié / pacsé' : 'célibataire');
+          bandeau('Données reprises de la fiche CRM de ' + d.nom_affiche + (repris.length ? ' : ' + repris.join(', ') + '.' : ' (aucune donnée exploitable dans la fiche).'), true);
+        })
+        .catch(function (e) { bandeau('Fiche CRM non reprise : ' + e.message, false); });
+    })();
   </script>
 </body>
 </html>
