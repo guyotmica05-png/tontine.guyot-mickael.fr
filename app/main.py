@@ -49,7 +49,8 @@ def logout():
 
 @app.get("/")
 def home(request: Request):
-    return RedirectResponse("/rentabilite", status_code=303)
+    cible = "/rentabilite" + ("?" + request.url.query if request.url.query else "")
+    return RedirectResponse(cible, status_code=303)
 
 
 @app.get("/rentabilite")
