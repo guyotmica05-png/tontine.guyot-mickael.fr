@@ -331,6 +331,7 @@
       a.download = 'simulation_tontine.pdf';
       a.click();
       URL.revokeObjectURL(url);
+      if (window.__crmRetour) { fetch('https://crm.guyot-mickael.fr/api/outil-retour/' + encodeURIComponent(window.__crmRetour), { method: 'POST' }).catch(function () {}); }
     });
 
     // --- Passer à la proposition commerciale (proposition.guyot-mickael.fr) ---
@@ -377,6 +378,7 @@
       fetch('https://crm.guyot-mickael.fr/api/fiche/' + encodeURIComponent(jeton))
         .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.erreur || 'Erreur'); return d; }); })
         .then(function (d) {
+          window.__crmRetour = d.retour;
           const repris = [];
           if (remplir('client_nom', d.nom_affiche)) repris.push('nom');
           if (d.age !== null && remplir('age', d.age)) repris.push('âge ' + d.age + ' ans');
