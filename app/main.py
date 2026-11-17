@@ -21,6 +21,7 @@ from fastapi.templating import Jinja2Templates
 
 from . import data
 from .pdf import render_pdf_rentabilite
+from .sans_logo import est_mode_test
 from .timeline import frise_svg
 
 app = FastAPI(title="Tontine — Guyot Mickaël", docs_url=None, redoc_url=None)
@@ -103,7 +104,7 @@ async def api_pdf_rentabilite(request: Request):
 
     client_nom = str(payload.get("client_nom") or "")
     try:
-        pdf_bytes = render_pdf_rentabilite(resultat, client_nom)
+        pdf_bytes = render_pdf_rentabilite(resultat, client_nom, sans_logo=est_mode_test(request.headers))
     except Exception:
         raise HTTPException(status_code=500, detail="Erreur lors de la génération du PDF.")
 

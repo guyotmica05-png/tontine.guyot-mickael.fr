@@ -11,7 +11,7 @@ from .timeline import frise_svg
 _env = Environment(loader=FileSystemLoader(str(Path(__file__).parent / "templates")))
 
 
-def render_pdf_rentabilite(resultat: dict, client_nom: str = "") -> bytes:
+def render_pdf_rentabilite(resultat: dict, client_nom: str = "", sans_logo: bool = False) -> bytes:
     template = _env.get_template("pdf_rentabilite.html")
     html = template.render(
         r=resultat,
@@ -21,4 +21,7 @@ def render_pdf_rentabilite(resultat: dict, client_nom: str = "") -> bytes:
         logo_b64=LOGO_GREY_B64,
         date_str=datetime.now().strftime("%d/%m/%Y"),
     )
+    if sans_logo:
+        from .sans_logo import retirer_logo
+        html = retirer_logo(html)
     return HTML(string=html).write_pdf()

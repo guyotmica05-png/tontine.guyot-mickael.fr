@@ -312,7 +312,7 @@
       const tranches = collecterTranches();
       const resp = await fetch('/api/pdf-rentabilite', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: Object.assign({ 'Content-Type': 'application/json' }, window.__modeTest ? { 'X-Mode-Test': '1' } : {}),
         body: JSON.stringify({
           age, tranches,
           situation: situationEl.value,
@@ -347,6 +347,7 @@
         situation: situationEl.value,
         encours_total: parseFloat(encoursEl.value) || 0,
         tranches: collecterTranches(),
+        mode_test: !!window.__modeTest,
       };
       const encode = btoa(unescape(encodeURIComponent(JSON.stringify(donnees))));
       // encodeURIComponent est indispensable ici : le base64 peut contenir des
@@ -360,6 +361,7 @@
     (function depuisCRM() {
       const jeton = new URLSearchParams(location.search).get('crm');
       if (!jeton) return;
+      window.__modeTest = jeton.indexOf('test.') === 0;  // base test du CRM : PDF sans logo
       history.replaceState(null, '', location.pathname);
       function bandeau(texte, ok) {
         const b = document.createElement('div');
